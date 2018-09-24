@@ -15,10 +15,10 @@ import java.util.UUID;
 public class TemperatureSymptomValue implements Parcelable {
     // value in celsius degrees
     public double value;
-    // true bbt
+    // true bbt (mandatory)
     public boolean trueBbt;
-    // when was the temperature measured (-1 if time is not specified)
-    public int time = -1;
+    // when was the temperature measured (optional)
+    public Integer time;
     // which app set the value
     public UUID originAppId;
 
@@ -45,7 +45,12 @@ public class TemperatureSymptomValue implements Parcelable {
         in.readInt();   // throw away the version, we cannot do anything about it anyway
         value = in.readDouble();
         trueBbt = in.readInt() == 1;
-        time = in.readInt();
+        if (in.readInt() == 1) {
+            time = in.readInt();
+        } else {
+            time = null;
+        }
+        // string
         originAppId = OvuUtil.readUuid(in);
     }
 
@@ -71,7 +76,11 @@ public class TemperatureSymptomValue implements Parcelable {
         parcel.writeInt(Constants.PARCEL_VERSION);
         parcel.writeDouble(value);
         parcel.writeInt(trueBbt ? 1 : 0);
-        parcel.writeInt(time);
+        // flag that time is present
+        parcel.writeInt(time != null ? 1 : 0);
+        if (time != null) {
+            parcel.writeInt(time);
+        }
         parcel.writeString(originAppId == null ? null : originAppId.toString());
     }
 

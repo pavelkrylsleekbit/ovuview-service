@@ -11,24 +11,22 @@ import java.util.UUID;
 /**
  * Blood pressure value - composed value in a single object.
  *
- * -1 value means not set
- *
- * If systolic pressure is set, then diastolic pressure might be also set.
+ * Systolic pressure is present iff diastolic is present as well.
  * In such case, pressureOriginAppId is common for both systolic and diastolic pressure.
  *
- * Pulse might be set, in which case pulse origin app must be also set.
+ * Pulse might be set, in which case pulse origin app must be also set (on input).
  */
 @SuppressWarnings("unused")
 public class BloodPressureSymptomValue implements Parcelable {
     public static final int VALUE_NOT_SET = -1;
-    //
-    public int systolic = -1;
-    //
-    public int diastolic = -1;
+    // optional (mandatory if diastolic is present)
+    public Integer systolic;
+    // optional (mandatory if systolic is present)
+    public Integer diastolic;
     // which app set the blood pressure
     public UUID pressureOriginAppId;
-    //
-    public int pulse = -1;
+    // optional
+    public Integer pulse;
     // which app set the pulse
     public UUID pulseOriginAppId;
 
@@ -43,11 +41,25 @@ public class BloodPressureSymptomValue implements Parcelable {
     @SuppressWarnings("WeakerAccess")
     public void readFromParcel(Parcel in) {
         in.readInt();   // throw away the version, we cannot do anything about it anyway
-        systolic = in.readInt();
-        diastolic = in.readInt();
-        pulse = in.readInt();
-        pressureOriginAppId = OvuUtil.readUuid(in);
-        pulseOriginAppId = OvuUtil.readUuid(in);
+        if (in.readInt() == 1) {
+            // there is present systolic + diastolic
+            systolic = in.readInt();
+            diastolic = in.readInt();
+            pressureOriginAppId = OvuUtil.readUuid(in);
+        } else {
+            systolic = null;
+            diastolic = null;
+            pressureOriginAppId = null;
+        }
+        // pulse
+        if (in.readInt() == 1) {
+            // there is pulse
+            pulse = in.readInt();
+            pulseOriginAppId = OvuUtil.readUuid(in);
+        } else {
+            pulse = null;
+            pulseOriginAppId = null;
+        }
     }
 
     public static final Creator<BloodPressureSymptomValue> CREATOR = new Creator<BloodPressureSymptomValue>() {
@@ -70,11 +82,22 @@ public class BloodPressureSymptomValue implements Parcelable {
     @Override
     public void writeToParcel(Parcel parcel, int i) {
         parcel.writeInt(Constants.PARCEL_VERSION);
-        parcel.writeInt(systolic);
-        parcel.writeInt(diastolic);
-        parcel.writeInt(pulse);
-        parcel.writeString(pressureOriginAppId == null ? null : pressureOriginAppId.toString());
-        parcel.writeString(pulseOriginAppId == null ? null : pulseOriginAppId.toString());
+        if ((systolic != null && diastolic == null) || (systolic == null && diastolic != null)) {
+            // inconsistency
+            throw new IllegalStateException("cannot serialize inconsistent blood pressure: " + this);
+        }
+        parcel.writeInt(systolic != null ? 1 : 0);
+        if (systolic != null) {
+            parcel.writeInt(systolic);
+            parcel.writeInt(diastolic);
+            parcel.writeString(pressureOriginAppId == null ? null : pressureOriginAppId.toString());
+        }
+        // pulse
+        parcel.writeInt(pulse != null ? 1 : 0);
+        if (pulse != null) {
+            parcel.writeInt(pulse);
+            parcel.writeString(pulseOriginAppId == null ? null : pulseOriginAppId.toString());
+        }
     }
 
     @Override
